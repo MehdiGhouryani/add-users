@@ -5,8 +5,10 @@ from telethon.tl.functions.channels import InviteToChannelRequest
 import asyncio
 from dotenv import load_dotenv
 import os
+import logging
 
 
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s',level=logging.INFO)
 load_dotenv()
 token=os.getenv('Token')
 
