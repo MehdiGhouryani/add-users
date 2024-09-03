@@ -10,7 +10,7 @@ from telethon.tl.types import User
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(name)
+logger = logging.getLogger(__name__)
 
 # Create a dictionary to store sessions and client objects for each user
 user_sessions = {}
