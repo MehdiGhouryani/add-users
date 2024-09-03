@@ -1,3 +1,4 @@
+
 import asyncio
 import logging
 import os
@@ -50,21 +51,37 @@ async def handle_request(api_id, api_hash, phone_number, code, group_link, chat_
             try:
                 await client(SendCodeRequest(phone_number))
                 if code:
-                    await client(SignInRequest(phone_number, code))
+                    try:
+                        await client(SignInRequest(phone_number, code))
+                        logger.info('Successfully signed in.')
+                    except Exception as e:
+                        logger.error(f'Error during signing in: {e}')
+                        return
                 else:
                     await client.send_message(chat_id, "Please provide the verification code sent to your phone.")
                     logger.info('Verification code request sent. Awaiting user input.')
                     return
             except Exception as e:
-                await client.send_message(chat_id, f"Error during authentication: {e}")
                 logger.error(f'Error during authentication: {e}')
                 return
         
         logger.info('Authentication successful, processing request...')
-        await client.send_message(chat_id, "Operation in progress...")
+        try:
+            await client.send_message(chat_id, "Operation in progress...")
+        except ValueError as e:
+            logger.error(f'Error sending message: {e}')
+            return
+        except Exception as e:
+            logger.error(f'Unexpected error: {e}')
+            return
+        
         added_count = await add_users_to_contacts(client, group_link)
-        await client.send_message(chat_id, f'{added_count} usernames have been added to contacts.')
-        logger.info(f'{added_count} usernames added to contacts.')
+        try:
+            await client.send_message(chat_id, f'{added_count} usernames have been added to contacts.')
+        except ValueError as e:
+            logger.error(f'Error sending final message: {e}')
+        except Exception as e:
+            logger.error(f'Unexpected error: {e}')
 
 async def start(update: Update, context: CallbackContext):
     await update.message.reply_text('Send /setup to configure the bot.')
@@ -76,6 +93,9 @@ async def setup(update: Update, context: CallbackContext):
     await update.message.reply_text('Please provide your API ID:')
     logger.info(f'Setup command received from user {user_id}')
 
+
+
+    
 async def handle_message(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
     user_data = user_sessions.get(user_id, {})
