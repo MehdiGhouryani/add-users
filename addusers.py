@@ -3,7 +3,10 @@ from telethon.tl.functions.messages import AddChatUserRequest
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 from telethon import TelegramClient
 import os
+from telethon.errors import FloodWaitError, RPCError
+from telethon.tl.functions.channels import InviteToChannelRequest
 import asyncio
+
 import logging
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s',level=logging.INFO)
@@ -75,6 +78,7 @@ async def target_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
+
 async def add_members(update, context):
     client = context.user_data['client']
     await client.connect()
@@ -83,20 +87,37 @@ async def add_members(update, context):
     target_group = context.user_data['target_group']
 
     try:
+        # دریافت اعضای گروه مبدأ
         participants = await client.get_participants(source_group)
+
+        # افزودن اعضا به گروه مقصد
         for user in participants:
-            try:
-                await client(AddChatUserRequest(target_group, user.id, fwd_limit=0))
-                await update.message.reply_text(f"Added {user.username or user.id} to {target_group}")
-            except Exception as e:
-                await update.message.reply_text(f"Failed to add {user.username or user.id}: {e}")
-            
-            await asyncio.sleep(3)  # Delay to prevent flooding
-        
+            if user.id is not None:
+                try:
+                    await client(InviteToChannelRequest(target_group, [user.id]))
+                    await update.message.reply_text(f"Added {user.username or user.id} to {target_group}")
+
+                    # منتظر ماندن برای 10 ثانیه قبل از افزودن نفر بعدی
+                    await asyncio.sleep(10)
+
+                except FloodWaitError as e:
+                    await update.message.reply_text(f"Flood wait error: {e}. Waiting for {e.seconds} seconds.")
+                    await asyncio.sleep(e.seconds)
+                except RPCError as e:
+                    await update.message.reply_text(f"RPC error: {e}.")
+                except Exception as e:
+                    await update.message.reply_text(f"Failed to add {user.username or user.id}: {e}")
+
         await update.message.reply_text("Finished adding members!")
     
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")# Function to handle cancelation
+        await update.message.reply_text(f"Error: {e}")
+    finally:
+        await client.disconnect()
+
+
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Operation canceled.")
     return ConversationHandler.END
