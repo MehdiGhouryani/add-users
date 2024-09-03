@@ -1,8 +1,12 @@
 from telegram import Update
+from telethon.tl.functions.messages import AddChatUserRequest
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 from telethon import TelegramClient
 import os
 import asyncio
+import logging
+
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s',level=logging.INFO)
 
 # Define stages of the conversation
 API_ID, API_HASH, PHONE_NUMBER, AUTH_CODE, SOURCE_GROUP, TARGET_GROUP = range(6)
@@ -69,8 +73,9 @@ async def target_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await add_members(update, context)
     return ConversationHandler.END
 
-# Function to add members from source to target group
-async def add_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+
+async def add_members(update, context):
     client = context.user_data['client']
     await client.connect()
 
@@ -79,22 +84,19 @@ async def add_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         participants = await client.get_participants(source_group)
-        for i in range(0, len(participants), 20):
-            batch = participants[i:i+20]
-            for user in batch:
-                try:
-                    await client.add_chat_members(target_group, user)
-                    await update.message.reply_text(f"Added {user.username} to {target_group}")
-                except Exception as e:
-                    await update.message.reply_text(f"Failed to add {user.username}: {e}")
-                    await update.message.reply_text("Waiting for 10 minutes before adding the next batch...")
-            await asyncio.sleep(600)
+        for user in participants:
+            try:
+                await client(AddChatUserRequest(target_group, user.id, fwd_limit=0))
+                await update.message.reply_text(f"Added {user.username or user.id} to {target_group}")
+            except Exception as e:
+                await update.message.reply_text(f"Failed to add {user.username or user.id}: {e}")
+            
+            await asyncio.sleep(3)  # Delay to prevent flooding
         
         await update.message.reply_text("Finished adding members!")
+    
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
-
-# Function to handle cancelation
+        await update.message.reply_text(f"Error: {e}")# Function to handle cancelation
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Operation canceled.")
     return ConversationHandler.END
