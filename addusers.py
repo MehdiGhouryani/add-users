@@ -1,8 +1,6 @@
-
-
-
 import asyncio
 import logging
+import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from telethon import TelegramClient
@@ -12,7 +10,7 @@ from telethon.tl.types import User
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(name)
 
 # Create a dictionary to store sessions and client objects for each user
 user_sessions = {}
@@ -39,13 +37,18 @@ async def add_users_to_contacts(client, group_link):
         return 0
 
 async def handle_request(api_id, api_hash, phone_number, code, group_link, chat_id):
-    session_file = f'sessions/{phone_number}'
+    # Ensure the directory exists
+    session_dir = 'sessions'
+    if not os.path.exists(session_dir):
+        os.makedirs(session_dir)
+    
+    session_file = f'{session_dir}/{phone_number}.session'
     async with TelegramClient(session_file, api_id, api_hash) as client:
         await client.connect()
         
         if not await client.is_user_authorized():
             try:
-                sent_code = await client(SendCodeRequest(phone_number))
+                await client(SendCodeRequest(phone_number))
                 if code:
                     await client(SignInRequest(phone_number, code))
                 else:
@@ -81,7 +84,8 @@ async def handle_message(update: Update, context: CallbackContext):
         text = update.message.text
         if 'api_id' not in user_data:
             user_data['api_id'] = text
-            await update.message.reply_text('Please provide your API Hash:')
+            await update.message.reply_text('Please provide your API Hash:')        
+
             logger.info(f'Received API ID from user {user_id}')
         elif 'api_hash' not in user_data:
             user_data['api_hash'] = text
@@ -124,6 +128,6 @@ def main():
     application.run_polling()
     logger.info('Bot is running.')
 
-
+    main()
 if __name__ == '__main__':
     main()
