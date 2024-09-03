@@ -95,20 +95,26 @@ async def add_members(update, context):
         for user in participants:
             if user.id is not None:
                 try:
-                    await client(AddChatUserRequest(target_group, user.id, fwd_limit=0))
-                    await update.message.reply_text(f"Added {user.username or user.id} to {target_group}")
+                    if isinstance(user.id,int) and isinstance(target_group,int):
+                        await client(AddChatUserRequest(target_group, user.id, fwd_limit=0))
+                        await update.message.reply_text(f"Added {user.username or user.id} to {target_group}")
 
                     # منتظر ماندن برای 10 ثانیه قبل از افزودن نفر بعدی
-                    await asyncio.sleep(10)
-
+                        await asyncio.sleep(10)
+                    else:
+                        await update.message.reply_text("invalid data type")
+                        
                 except FloodWaitError as e:
                     await update.message.reply_text(f"Flood wait error: {e}. Waiting for {e.seconds} seconds.")
                     await asyncio.sleep(e.seconds)
                 except RPCError as e:
                     await update.message.reply_text(f"RPC error: {e}.")
+                    await asyncio.sleep(e.seconds)
                 except Exception as e:
                     await update.message.reply_text(f"Failed to add {user.username or user.id}: {e}")
-
+                    await asyncio.sleep(e.seconds)
+            else :
+                continue
         await update.message.reply_text("Finished adding members!")
     
     except Exception as e:
