@@ -79,6 +79,7 @@ async def target_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
+
 async def add_members(update, context):
     client = context.user_data['client']
     await client.connect()
@@ -94,7 +95,7 @@ async def add_members(update, context):
         for user in participants:
             if user.id is not None:
                 try:
-                    await client(InviteToChannelRequest(target_group, [user.id]))
+                    await client(AddChatUserRequest(target_group, user.id, fwd_limit=0))
                     await update.message.reply_text(f"Added {user.username or user.id} to {target_group}")
 
                     # منتظر ماندن برای 10 ثانیه قبل از افزودن نفر بعدی
@@ -114,7 +115,6 @@ async def add_members(update, context):
         await update.message.reply_text(f"Error: {e}")
     finally:
         await client.disconnect()
-
 
 
 
